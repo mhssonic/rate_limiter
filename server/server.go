@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
 	"net/http"
 	"os"
@@ -18,6 +20,20 @@ func openLogFile(path string) (*os.File, error) {
 	return logFile, nil
 }
 
+// variables of counter in metric
+var okStatusCounter = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Name: "ok_request_count",
+		Help: "Number of 200",
+	},
+)
+var tooManyRequestCounter = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Name: "too_many_request_count",
+		Help: "Number of 429",
+	},
+)
+
 var redis = make(map[string][61]int) //last element of every array is sum of the req of a min
 
 func listener(serverLog *log.Logger) http.HandlerFunc {
@@ -29,13 +45,17 @@ func listener(serverLog *log.Logger) http.HandlerFunc {
 		if ok {
 			if el[60] > 60 { //todo database rule
 				serverLog.Println("not ok request")
+				tooManyRequestCounter.Inc()
 				w.WriteHeader(http.StatusTooManyRequests)
 			} else {
 				serverLog.Println("ok request")
+				okStatusCounter.Inc()
 				el[second]++
 				el[60]++
 			}
 		} else {
+			serverLog.Println("ok request")
+			okStatusCounter.Inc()
 			el[second] = 1
 			el[60] = 1
 		}
@@ -59,7 +79,10 @@ func listener(serverLog *log.Logger) http.HandlerFunc {
 }
 
 func main() {
-	flagSecond := time.Now().Second()
+	//metric
+	prometheus.MustRegister(tooManyRequestCounter, okStatusCounter)
+
+	//log handling
 	fileServerLog, err := openLogFile("server/serverLog.log")
 	if err != nil {
 		log.Fatal(err)
@@ -68,6 +91,9 @@ func main() {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+
+	//renew redis every second
+	flagSecond := time.Now().Second()
 	go func() {
 		for true {
 			if flagSecond != time.Now().Second() {
@@ -80,10 +106,13 @@ func main() {
 			}
 		}
 	}()
+
+	//server:
 	go func() {
 		defer wg.Done()
 		mux := http.NewServeMux()
-		mux.HandleFunc("/", listener(serverLog))
+		mux.HandleFunc("/home", listener(serverLog))
+		mux.Handle("/metrics", promhttp.Handler())
 		server := http.Server{
 			Addr:    fmt.Sprintf(":%d", 3333),
 			Handler: mux,

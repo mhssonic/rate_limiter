@@ -23,7 +23,7 @@ func main() {
 	}
 	clientLog := log.New(fileClientLog, "[client]", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)
 
-	requestURL := fmt.Sprintf("http://localhost:%d", 3333)
+	requestURL := fmt.Sprintf("http://localhost:%d/home", 3333)
 	reg, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
 		clientLog.Printf("error making http request: %s\n", err)
@@ -41,6 +41,6 @@ func main() {
 		}
 		clientLog.Printf("client: got response!\n")
 		clientLog.Printf("client: status code: %d\n", res.StatusCode)
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(20 * time.Millisecond)
 	}
 }
