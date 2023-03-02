@@ -1,4 +1,4 @@
-package client
+package main
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ func openLogFile(path string) (*os.File, error) {
 }
 
 func main() {
-	fileClientLog, err := openLogFile("./clientLog.log")
+	fileClientLog, err := openLogFile("client/clientLog.log")
 	if err != nil {
 		log.Fatal(err)
 	}

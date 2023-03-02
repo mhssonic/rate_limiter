@@ -1,4 +1,4 @@
-package server
+package main
 
 import (
 	"errors"
@@ -60,7 +60,7 @@ func listener(serverLog *log.Logger) http.HandlerFunc {
 
 func main() {
 	flagSecond := time.Now().Second()
-	fileServerLog, err := openLogFile("./serverLog.log")
+	fileServerLog, err := openLogFile("server/serverLog.log")
 	if err != nil {
 		log.Fatal(err)
 	}
