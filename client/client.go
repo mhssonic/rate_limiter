@@ -34,13 +34,17 @@ func main() {
 		Timeout: 30 * time.Second,
 	}
 	for true {
-		res, err := client.Do(reg)
+		_, err := client.Do(reg)
 		if err != nil {
 			clientLog.Printf("client: error making http request: %s\n", err)
 			os.Exit(1)
 		}
-		clientLog.Printf("client: got response!\n")
-		clientLog.Printf("client: status code: %d\n", res.StatusCode)
-		time.Sleep(20 * time.Millisecond)
+		//res, err := client.Do(reg)
+		//if err != nil {
+		//	clientLog.Printf("client: error making http request: %s\n", err)
+		//	os.Exit(1)
+		//}
+		//clientLog.Printf("client: got response!\n")
+		//clientLog.Printf("client: status code: %d\n", res.StatusCode)
 	}
 }
