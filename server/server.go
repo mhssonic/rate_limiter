@@ -34,13 +34,15 @@ var tooManyRequestCounter = prometheus.NewCounter(
 	},
 )
 
-var redis = make(map[string][61]int) //last element of every array is sum of the req of a min
+var mu sync.Mutex
+var redis = make(map[string][]int) //last element of every array is sum of the req of a min
 
 func listener(serverLog *log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		//serverLog.Println("Got a request!")
 		clientAddr := r.RemoteAddr
 		second := time.Now().Second()
+		mu.Lock()
 		el, ok := redis[clientAddr]
 		if ok {
 			if el[60] > 60 { //todo database rule
@@ -50,16 +52,17 @@ func listener(serverLog *log.Logger) http.HandlerFunc {
 			} else {
 				//serverLog.Println("ok request")
 				okStatusCounter.Inc()
-				el[second]++
-				el[60]++
+				redis[clientAddr][second]++
+				redis[clientAddr][60]++
 			}
 		} else {
+			redis[clientAddr] = make([]int, 61)
 			//serverLog.Println("ok request")
 			okStatusCounter.Inc()
-			el[second] = 1
-			el[60] = 1
+			redis[clientAddr][second] = 1
+			redis[clientAddr][60] = 1
 		}
-		redis[clientAddr] = el //todo fix this shit
+		mu.Unlock()
 		//serverLog.Printf("%v\n", redis[clientAddr])
 		//fmt.Printf("server: %s /\n", r.Method)
 		//fmt.Printf("server: query id: %s\n", r.URL.Query().Get("id"))
@@ -97,12 +100,13 @@ func main() {
 	go func() {
 		for true {
 			if flagSecond != time.Now().Second() {
+				mu.Lock()
 				flagSecond = time.Now().Second()
 				for key, el := range redis {
-					el[60] -= el[flagSecond]
-					el[flagSecond] = 0
-					redis[key] = el
+					redis[key][60] -= el[flagSecond]
+					redis[key][flagSecond] = 0
 				}
+				mu.Unlock()
 			}
 		}
 	}()

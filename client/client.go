@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -16,35 +17,63 @@ func openLogFile(path string) (*os.File, error) {
 	return logFile, nil
 }
 
+var mu sync.Mutex
+
+func sendHttp(clientLog *log.Logger) {
+	requestURL := fmt.Sprintf("http://localhost:%d/home", 3333)
+	//var wg sync.WaitGroup
+	//wg.Add(4)
+	//req, err := http.NewRequest(http.MethodGet, requestURL, nil)
+	//if err != nil {
+	//	fmt.Printf("client: could not create request: %s\n", err)
+	//	os.Exit(1)
+	//}
+
+	//clientLog.Println("hey")
+	//clients := make([]http.Client, 20)
+
+	for i := 0; i < 1000; i++ {
+		t := http.DefaultTransport.(*http.Transport).Clone()
+		t.MaxIdleConns = 100
+		t.MaxConnsPerHost = 100
+		t.MaxIdleConnsPerHost = 100
+
+		httpClient := &http.Client{
+			Timeout:   10 * time.Second,
+			Transport: t,
+		}
+		go func() {
+			//defer wg.Done()
+			for {
+				httpClient.Get(requestURL)
+				//time.Sleep(1 * time.Microsecond)
+
+				//client.Do(req)
+				//clients[i].Do(req)
+				//mu.Lock()
+				//_, err := client.Do(req)
+				//if err != nil {
+				//	clientLog.Printf("client: error making http request: %s\n", err)
+				//	os.Exit(1)
+				//} /**else {
+				//clientLog.Println("Good")
+				//}**/
+				//mu.Unlock()
+			}
+			//runtime.Gosched()
+		}()
+	}
+	//wg.Wait()
+	time.Sleep(2 * time.Minute)
+}
+
 func main() {
 	fileClientLog, err := openLogFile("client/clientLog.log")
 	if err != nil {
 		log.Fatal(err)
 	}
 	clientLog := log.New(fileClientLog, "[client]", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)
+	sendHttp(clientLog)
+	//sendHttp2(clientLog)
 
-	requestURL := fmt.Sprintf("http://localhost:%d/home", 3333)
-	reg, err := http.NewRequest(http.MethodGet, requestURL, nil)
-	if err != nil {
-		clientLog.Printf("error making http request: %s\n", err)
-		os.Exit(1)
-	}
-
-	client := http.Client{
-		Timeout: 30 * time.Second,
-	}
-	for true {
-		_, err := client.Do(reg)
-		if err != nil {
-			clientLog.Printf("client: error making http request: %s\n", err)
-			os.Exit(1)
-		}
-		//res, err := client.Do(reg)
-		//if err != nil {
-		//	clientLog.Printf("client: error making http request: %s\n", err)
-		//	os.Exit(1)
-		//}
-		//clientLog.Printf("client: got response!\n")
-		//clientLog.Printf("client: status code: %d\n", res.StatusCode)
-	}
 }
